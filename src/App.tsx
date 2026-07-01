@@ -740,7 +740,8 @@ function RulesPanel({ compact = false, embedded = false }: { compact?: boolean; 
     "同一工位最高出价者中标，并支付全部出价。",
     "未中标者扣出价 10% 参与费，最低扣 1 币。",
     "最高价相同时，系统随机幸运胜出。",
-    "第 5 轮后仍未分配的人，按余额从高到低自动补位。"
+    "主持人可持续开启下一轮，不限制轮数。",
+    "主持人点击收官后，未分配的人按余额从高到低自动补位。"
   ];
   const visibleRules = compact ? rules.slice(0, 4) : rules;
 

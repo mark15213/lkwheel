@@ -21,7 +21,6 @@ export type Phase = "lobby" | "layout" | "round_open" | "reveal" | "complete";
 export const INITIAL_BALANCE = 100;
 export const ROOM_CAPACITY = SEAT_IDS.length;
 export const MIN_PLAYERS_TO_START = 1;
-export const MAX_ROUNDS = 5;
 export const ROUND_DURATION_MS = 60_000;
 
 export interface Seat {

@@ -4,6 +4,7 @@ import { ROOM_CAPACITY, SEAT_IDS } from "../shared/types";
 import {
   createRoom,
   exportResults,
+  forceComplete,
   joinRoom,
   revealRound,
   roomToView,
@@ -78,22 +79,27 @@ test("awards one winner per seat and charges losing penalties", () => {
   assert.equal(room.players.get("player-2")?.seatId, "201S");
 });
 
-test("auto-assigns remaining players after the fifth round without duplicates", () => {
+test("continues past five rounds and only auto-assigns when host completes", () => {
   const room = createRoom("ROOM4", "host");
   for (let index = 0; index < ROOM_CAPACITY; index += 1) {
     joinRoom(room, `player-${index}`, `玩家${String(index + 1).padStart(2, "0")}`);
   }
   startGame(room, "host");
 
-  for (let round = 1; round <= 5; round += 1) {
+  for (let round = 1; round <= 6; round += 1) {
     const bidderId = `player-${round - 1}`;
     submitBid(room, bidderId, SEAT_IDS[round - 1], 10 + round);
     revealRound(room, () => 0);
-    if (round < 5) {
+    if (round < 6) {
       startNextRound(room, "host");
     }
   }
 
+  assert.equal(room.phase, "reveal");
+  assert.equal(room.round, 6);
+  assert.equal(roomToView(room).unassignedCount, ROOM_CAPACITY - 6);
+
+  forceComplete(room, "host");
   assert.equal(room.phase, "complete");
   const view = roomToView(room);
   assert.equal(view.unassignedCount, 0);

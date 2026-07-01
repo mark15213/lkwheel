@@ -1,6 +1,5 @@
 import {
   INITIAL_BALANCE,
-  MAX_ROUNDS,
   MIN_PLAYERS_TO_START,
   ROUND_DURATION_MS,
   SEAT_IDS,
@@ -189,10 +188,6 @@ export function startNextRound(room: GameRoomState, hostId: string, now = Date.n
   if (room.phase !== "reveal") {
     throw new GameError("当前不能开启下一轮");
   }
-  if (room.round >= MAX_ROUNDS) {
-    finalizeRemainingPlayers(room);
-    return;
-  }
   if (unassignedPlayers(room).length === 0) {
     room.phase = "complete";
     room.roundEndsAt = undefined;
@@ -323,9 +318,6 @@ export function revealRound(room: GameRoomState, rng: () => number = Math.random
   room.bids.clear();
   room.roundEndsAt = undefined;
 
-  const autoAssignments =
-    unassignedPlayers(room).length > 0 && room.round >= MAX_ROUNDS ? finalizeRemainingPlayers(room) : [];
-
   const completed = unassignedPlayers(room).length === 0;
   room.phase = completed ? "complete" : "reveal";
 
@@ -333,7 +325,7 @@ export function revealRound(room: GameRoomState, rng: () => number = Math.random
     round: room.round,
     winners,
     penalties,
-    autoAssignments,
+    autoAssignments: [],
     completed
   };
   room.latestOutcome = outcome;
