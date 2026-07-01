@@ -8,7 +8,7 @@ const httpServer = createServer((request, response) => {
     JSON.stringify({
       ok: true,
       endpoint: "/api/socket-io",
-      socketPaths: ["/api/socket-io/socket.io", "/socket.io"]
+      socketPaths: ["/api/socket-io", "/api/socket-io/socket.io", "/socket.io"]
     })
   );
 });

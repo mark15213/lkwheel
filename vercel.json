@@ -3,5 +3,11 @@
   "fluid": true,
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "framework": "vite"
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/api/socket-io/:path*",
+      "destination": "/api/socket-io"
+    }
+  ]
 }

@@ -69,44 +69,97 @@ export default function App() {
   );
 
   useEffect(() => {
-    const socketPath =
-      import.meta.env.VITE_SOCKET_PATH ||
-      (import.meta.env.PROD ? "/api/socket-io" : "/socket.io");
+    const socketPaths = getSocketPaths();
     const socketUrl = import.meta.env.VITE_SOCKET_URL || undefined;
-    const client = io(socketUrl, {
-      path: socketPath,
-      transports: ["websocket"],
-      auth: {
-        clientId: getClientId()
-      }
-    });
+    let activeClient: Socket | null = null;
+    let cancelled = false;
+    let retryTimer: number | undefined;
 
-    client.on("connect", () => {
-      setConnected(true);
-      const saved = readSession();
-      if (saved?.code) {
-        client.emit("room:resume", { code: saved.code }, (response: Ack<{ role: "host" | "player"; room: RoomView }>) => {
-          if (response.ok) {
-            setRole(response.role);
-            setRoom(response.room);
-            setJoinCode(response.room.code);
-            setNickname(saved.nickname ?? "");
-          } else {
-            localStorage.removeItem(SESSION_KEY);
-          }
-        });
+    const clearRetry = () => {
+      if (retryTimer) {
+        window.clearTimeout(retryTimer);
+        retryTimer = undefined;
       }
-    });
-    client.on("disconnect", () => setConnected(false));
-    client.on("connect_error", (error) => {
-      setConnected(false);
-      setNotice(`实时连接失败：${socketPath} (${error.message})`);
-    });
-    client.on("room:update", (nextRoom: RoomView) => setRoom(nextRoom));
+    };
 
-    setSocket(client);
+    const connectWithPath = (pathIndex: number) => {
+      clearRetry();
+      const socketPath = socketPaths[pathIndex];
+      const client = io(socketUrl, {
+        path: socketPath,
+        transports: ["websocket"],
+        reconnection: false,
+        timeout: 6000,
+        auth: {
+          clientId: getClientId()
+        }
+      });
+
+      activeClient = client;
+      setSocket(client);
+
+      client.on("connect", () => {
+        if (cancelled || client !== activeClient) {
+          return;
+        }
+        setConnected(true);
+        setNotice("");
+        const saved = readSession();
+        if (saved?.code) {
+          client.emit(
+            "room:resume",
+            { code: saved.code },
+            (response: Ack<{ role: "host" | "player"; room: RoomView }>) => {
+              if (response.ok) {
+                setRole(response.role);
+                setRoom(response.room);
+                setJoinCode(response.room.code);
+                setNickname(saved.nickname ?? "");
+              } else {
+                localStorage.removeItem(SESSION_KEY);
+              }
+            }
+          );
+        }
+      });
+
+      client.on("disconnect", () => {
+        if (cancelled || client !== activeClient) {
+          return;
+        }
+        setConnected(false);
+        retryTimer = window.setTimeout(() => connectWithPath(0), 1800);
+      });
+
+      client.on("connect_error", (error) => {
+        if (cancelled || client !== activeClient) {
+          return;
+        }
+        client.removeAllListeners();
+        client.disconnect();
+        const nextIndex = pathIndex + 1;
+        if (nextIndex < socketPaths.length) {
+          connectWithPath(nextIndex);
+          return;
+        }
+        setConnected(false);
+        setSocket(null);
+        setNotice(`实时连接失败：已尝试 ${socketPaths.join("、")}（最后错误：${error.message}）`);
+      });
+
+      client.on("room:update", (nextRoom: RoomView) => {
+        if (!cancelled && client === activeClient) {
+          setRoom(nextRoom);
+        }
+      });
+    };
+
+    connectWithPath(0);
+
     return () => {
-      client.disconnect();
+      cancelled = true;
+      clearRetry();
+      activeClient?.disconnect();
     };
   }, []);
 
@@ -959,6 +1012,17 @@ function Metric({ icon, label, value }: { icon: ReactNode; label: string; value:
       <strong>{value}</strong>
     </div>
   );
+}
+
+function getSocketPaths(): string[] {
+  const configuredPath = import.meta.env.VITE_SOCKET_PATH;
+  if (configuredPath) {
+    return [configuredPath];
+  }
+  if (!import.meta.env.PROD) {
+    return ["/socket.io"];
+  }
+  return ["/api/socket-io", "/api/socket-io/socket.io", "/socket.io"];
 }
 
 function getClientId(): string {

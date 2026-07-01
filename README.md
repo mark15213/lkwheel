@@ -21,7 +21,7 @@ npm run dev
 4. 项目配置已在 `vercel.json` 开启 `"fluid": true`，用于支持 WebSocket。
 5. 部署后打开 Vercel 域名。
 
-默认情况下，生产环境会自动连接 `/api/socket-io`，不需要额外环境变量。
+默认情况下，生产环境会依次尝试 `/api/socket-io`、`/api/socket-io/socket.io`、`/socket.io`，不需要额外环境变量。`/api/socket-health` 可用于确认 Vercel API 函数是否已经正常部署。
 
 注意：当前房间状态保存在 Function 内存中，适合小型现场活动和单房间测试。Vercel 多实例或 Function 重启时，房间状态可能丢失；如果要稳定支持多人线上活动，建议再接 Redis/数据库保存房间状态并同步 Socket.IO 事件。
 
