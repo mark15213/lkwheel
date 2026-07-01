@@ -69,7 +69,9 @@ export default function App() {
   );
 
   useEffect(() => {
-    const socketPath = import.meta.env.VITE_SOCKET_PATH || "/socket.io";
+    const socketPath =
+      import.meta.env.VITE_SOCKET_PATH ||
+      (import.meta.env.PROD ? "/api/socket-io/socket.io" : "/socket.io");
     const socketUrl = import.meta.env.VITE_SOCKET_URL || undefined;
     const client = io(socketUrl, {
       path: socketPath,
@@ -96,6 +98,10 @@ export default function App() {
       }
     });
     client.on("disconnect", () => setConnected(false));
+    client.on("connect_error", () => {
+      setConnected(false);
+      setNotice("实时连接失败，请刷新页面或检查部署配置");
+    });
     client.on("room:update", (nextRoom: RoomView) => setRoom(nextRoom));
 
     setSocket(client);
