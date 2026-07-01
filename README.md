@@ -19,6 +19,25 @@ PORT=5174 npm run deploy:local
 
 本地部署会使用长驻 Node/Socket.IO 服务，房间状态保存在主持人电脑进程内。活动期间不要关闭终端；如果电脑防火墙提示是否允许 Node 接入网络，请选择允许。
 
+## Windows 无 npm 运行
+
+如果现场 Windows 电脑没有 npm，先在一台有 npm 的电脑上生成免 npm 运行包：
+
+```bash
+npm run package:local
+```
+
+生成结果：
+
+```text
+release/desk-auction-local.zip
+release/desk-auction-local/
+```
+
+把 `desk-auction-local.zip` 拷到 Windows 后解压，双击 `start-windows.cmd`。
+
+如果 Windows 电脑连 Node.js 都没有，可以下载 Node.js 的 Windows Binary zip 包，只需要把里面的 `node.exe` 放到解压目录的 `node/node.exe`，然后再双击 `start-windows.cmd`。不需要运行 `npm install`。
+
 ## 本地开发
 
 ```bash

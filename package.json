@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "tsx server/index.ts",
     "build": "vite build",
+    "build:server": "vite build --config vite.server.config.ts",
     "start": "NODE_ENV=production tsx server/index.ts",
     "start:local": "NODE_ENV=production HOST=0.0.0.0 tsx server/index.ts",
     "deploy:local": "npm run build && npm run start:local",
+    "package:local": "npm run build && npm run build:server && node scripts/package-local.mjs",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test server/game.test.ts"
   },
