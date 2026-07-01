@@ -20,12 +20,17 @@ const sharedOptions: Partial<ServerOptions> = {
   }
 };
 
+const apiPathIo = new Server(httpServer, {
+  ...sharedOptions,
+  path: "/api/socket-io"
+});
 const defaultPathIo = new Server(httpServer, sharedOptions);
 const fullPathIo = new Server(httpServer, {
   ...sharedOptions,
   path: "/api/socket-io/socket.io"
 });
 
+registerRealtimeHandlers(apiPathIo);
 registerRealtimeHandlers(defaultPathIo);
 registerRealtimeHandlers(fullPathIo);
 

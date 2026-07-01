@@ -71,7 +71,7 @@ export default function App() {
   useEffect(() => {
     const socketPath =
       import.meta.env.VITE_SOCKET_PATH ||
-      (import.meta.env.PROD ? "/api/socket-io/socket.io" : "/socket.io");
+      (import.meta.env.PROD ? "/api/socket-io" : "/socket.io");
     const socketUrl = import.meta.env.VITE_SOCKET_URL || undefined;
     const client = io(socketUrl, {
       path: socketPath,
