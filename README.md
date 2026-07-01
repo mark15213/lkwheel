@@ -2,14 +2,31 @@
 
 在线实时工位暗拍小游戏。
 
-## Local
+## 本地部署（推荐）
+
+```bash
+npm install
+npm run deploy:local
+```
+
+主持人电脑打开 `http://localhost:5173`。终端会打印类似 `LAN address: http://192.168.x.x:5173` 的地址，把这个地址发给同一 Wi-Fi 下的参与者即可。
+
+如果 5173 端口被占用，可以换端口：
+
+```bash
+PORT=5174 npm run deploy:local
+```
+
+本地部署会使用长驻 Node/Socket.IO 服务，房间状态保存在主持人电脑进程内。活动期间不要关闭终端；如果电脑防火墙提示是否允许 Node 接入网络，请选择允许。
+
+## 本地开发
 
 ```bash
 npm install
 npm run dev
 ```
 
-打开 `http://localhost:5173`。
+打开 `http://localhost:5173`，用于开发调试。
 
 ## Vercel
 

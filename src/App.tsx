@@ -1080,7 +1080,23 @@ function getSocketPaths(): string[] {
   if (!import.meta.env.PROD) {
     return ["/socket.io"];
   }
+  if (isLocalDeploymentHost()) {
+    return ["/socket.io"];
+  }
   return ["/api/socket-io", "/api/socket-io/socket.io", "/socket.io"];
+}
+
+function isLocalDeploymentHost(): boolean {
+  const hostname = window.location.hostname.toLowerCase();
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname.endsWith(".local") ||
+    /^10\./.test(hostname) ||
+    /^192\.168\./.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname)
+  );
 }
 
 function wrapSocketClient(client: Socket): RealtimeClient {

@@ -1,5 +1,6 @@
 import express from "express";
 import { createServer as createHttpServer } from "node:http";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "socket.io";
@@ -13,6 +14,7 @@ const httpServer = createHttpServer(app);
 const io = new Server(httpServer);
 const isProduction = process.env.NODE_ENV === "production";
 const port = Number(process.env.PORT ?? 5173);
+const host = process.env.HOST?.trim();
 
 registerRealtimeHandlers(io);
 
@@ -61,11 +63,29 @@ if (isProduction) {
   app.use(vite.middlewares);
 }
 
-httpServer.listen(port, () => {
-  console.log(`Desk auction room listening on http://localhost:${port}`);
-});
+if (host) {
+  httpServer.listen(port, host, logStartup);
+} else {
+  httpServer.listen(port, logStartup);
+}
 
 function getClientIdFromRequest(request: express.Request, fallback?: unknown): string {
   const headerValue = request.header("x-client-id");
   return headerValue?.trim() || String(fallback ?? "");
+}
+
+function logStartup(): void {
+  console.log(`Desk auction room listening on http://localhost:${port}`);
+  if (host === "0.0.0.0" || host === "::") {
+    for (const address of getLocalIPv4Addresses()) {
+      console.log(`LAN address: http://${address}:${port}`);
+    }
+  }
+}
+
+function getLocalIPv4Addresses(): string[] {
+  return Object.values(os.networkInterfaces())
+    .flatMap((items) => items ?? [])
+    .filter((item) => item.family === "IPv4" && !item.internal)
+    .map((item) => item.address);
 }
