@@ -12,6 +12,7 @@ import {
   startNextRound,
   submitBid
 } from "./game";
+import { getHttpRealtimeRoom, handleHttpRealtimeEvent } from "./httpRealtime";
 
 test("starts with a non-empty room and rejects duplicate nicknames", () => {
   const room = createRoom("ROOM1", "host");
@@ -120,4 +121,30 @@ test("exports final results as text and csv", () => {
   const result = exportResults(room);
   assert.match(result.text, /200S: 玩家1/);
   assert.match(result.csv, /seat,nickname/);
+});
+
+test("http fallback transport can run a full small game", () => {
+  const created = handleHttpRealtimeEvent("room:create", {}, "http-host");
+  assert.equal(created.ok, true);
+  if (!created.ok) {
+    return;
+  }
+  const code = String(created.code);
+
+  const joined = handleHttpRealtimeEvent("room:join", { code, nickname: "玩家A" }, "http-player");
+  assert.equal(joined.ok, true);
+
+  const started = handleHttpRealtimeEvent("game:start", { code }, "http-host");
+  assert.equal(started.ok, true);
+
+  const bid = handleHttpRealtimeEvent("bid:submit", { code, seatId: "200S", amount: 20 }, "http-player");
+  assert.equal(bid.ok, true);
+
+  const polled = getHttpRealtimeRoom(code, "http-host");
+  assert.equal(polled.ok, true);
+  if (!polled.ok) {
+    return;
+  }
+  assert.equal(polled.room.phase, "complete");
+  assert.equal(polled.room.players[0]?.seatId, "200S");
 });

@@ -33,6 +33,14 @@ import {
 type Role = "host" | "player" | null;
 type Ack<T = Record<string, unknown>> = ({ ok: true } & T) | { ok: false; error: string };
 type Session = { code: string; role: Exclude<Role, null>; nickname?: string };
+type RealtimeClient = {
+  emit: <T = Record<string, unknown>>(
+    event: string,
+    payload: Record<string, unknown>,
+    ack?: (response: Ack<T>) => void
+  ) => void;
+  disconnect: () => void;
+};
 
 const SESSION_KEY = "desk-auction-session";
 const CLIENT_KEY = "desk-auction-client-id";
@@ -45,7 +53,7 @@ const phaseLabel: Record<RoomView["phase"], string> = {
 };
 
 export default function App() {
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [socket, setSocket] = useState<RealtimeClient | null>(null);
   const [connected, setConnected] = useState(false);
   const [room, setRoom] = useState<RoomView | null>(null);
   const [role, setRole] = useState<Role>(null);
@@ -55,6 +63,8 @@ export default function App() {
   const [selectedSeat, setSelectedSeat] = useState<SeatId | "">("");
   const [bidAmount, setBidAmount] = useState(20);
   const [notice, setNotice] = useState("");
+  const roomCodeRef = useRef("");
+  const roleRef = useRef<Role>(null);
 
   const currentPlayer = useMemo(() => {
     if (!room) {
@@ -69,9 +79,20 @@ export default function App() {
   );
 
   useEffect(() => {
+    if (room?.code) {
+      roomCodeRef.current = room.code;
+    }
+  }, [room?.code]);
+
+  useEffect(() => {
+    roleRef.current = role;
+  }, [role]);
+
+  useEffect(() => {
     const socketPaths = getSocketPaths();
     const socketUrl = import.meta.env.VITE_SOCKET_URL || undefined;
     let activeClient: Socket | null = null;
+    let activeFallback: RealtimeClient | null = null;
     let cancelled = false;
     let retryTimer: number | undefined;
 
@@ -89,14 +110,14 @@ export default function App() {
         path: socketPath,
         transports: ["websocket"],
         reconnection: false,
-        timeout: 6000,
+        timeout: 2500,
         auth: {
           clientId: getClientId()
         }
       });
 
       activeClient = client;
-      setSocket(client);
+      setSocket(wrapSocketClient(client));
 
       client.on("connect", () => {
         if (cancelled || client !== activeClient) {
@@ -142,9 +163,7 @@ export default function App() {
           connectWithPath(nextIndex);
           return;
         }
-        setConnected(false);
-        setSocket(null);
-        setNotice(`实时连接失败：已尝试 ${socketPaths.join("、")}（最后错误：${error.message}）`);
+        startHttpFallback(error.message);
       });
 
       client.on("room:update", (nextRoom: RoomView) => {
@@ -154,12 +173,51 @@ export default function App() {
       });
     };
 
+    const startHttpFallback = (lastError: string) => {
+      if (cancelled || activeFallback) {
+        return;
+      }
+      activeClient?.disconnect();
+      activeFallback = createHttpRealtimeClient({
+        getRoomCode: () => roomCodeRef.current || readSession()?.code || "",
+        onConnectionChange: setConnected,
+        onRoomUpdate: (nextRoom, nextRole) => {
+          setRoom(nextRoom);
+          setJoinCode(nextRoom.code);
+          if (nextRole && !roleRef.current) {
+            setRole(nextRole);
+          }
+        }
+      });
+      setSocket(activeFallback);
+      setNotice(`WebSocket 连接失败，已切换兼容模式（${lastError}）`);
+
+      const saved = readSession();
+      if (saved?.code) {
+        activeFallback.emit(
+          "room:resume",
+          { code: saved.code },
+          (response: Ack<{ role: "host" | "player"; room: RoomView }>) => {
+            if (response.ok) {
+              setRole(response.role);
+              setRoom(response.room);
+              setJoinCode(response.room.code);
+              setNickname(saved.nickname ?? "");
+            } else {
+              localStorage.removeItem(SESSION_KEY);
+            }
+          }
+        );
+      }
+    };
+
     connectWithPath(0);
 
     return () => {
       cancelled = true;
       clearRetry();
       activeClient?.disconnect();
+      activeFallback?.disconnect();
     };
   }, []);
 
@@ -1023,6 +1081,103 @@ function getSocketPaths(): string[] {
     return ["/socket.io"];
   }
   return ["/api/socket-io", "/api/socket-io/socket.io", "/socket.io"];
+}
+
+function wrapSocketClient(client: Socket): RealtimeClient {
+  return {
+    emit(event, payload, ack) {
+      client.emit(event, payload, ack);
+    },
+    disconnect() {
+      client.disconnect();
+    }
+  };
+}
+
+function createHttpRealtimeClient({
+  getRoomCode,
+  onConnectionChange,
+  onRoomUpdate
+}: {
+  getRoomCode: () => string;
+  onConnectionChange: (connected: boolean) => void;
+  onRoomUpdate: (room: RoomView, role?: "host" | "player") => void;
+}): RealtimeClient {
+  let stopped = false;
+  let pollTimer: number | undefined;
+
+  const schedulePoll = (delay: number) => {
+    if (stopped) {
+      return;
+    }
+    pollTimer = window.setTimeout(poll, delay);
+  };
+
+  const poll = async () => {
+    if (stopped) {
+      return;
+    }
+
+    try {
+      const code = getRoomCode();
+      const query = code ? `?code=${encodeURIComponent(code)}&clientId=${encodeURIComponent(getClientId())}` : "";
+      const response = await fetch(`/api/realtime${query}`, {
+        cache: "no-store",
+        headers: {
+          "x-client-id": getClientId()
+        }
+      });
+      const data = (await response.json()) as Ack<{ role?: "host" | "player"; room?: RoomView }>;
+      if (data.ok) {
+        onConnectionChange(true);
+        if (data.room) {
+          onRoomUpdate(data.room, data.role);
+        }
+      } else {
+        onConnectionChange(false);
+      }
+    } catch {
+      onConnectionChange(false);
+    } finally {
+      schedulePoll(getRoomCode() ? 1000 : 2500);
+    }
+  };
+
+  schedulePoll(0);
+
+  return {
+    emit(event, payload, ack) {
+      void fetch("/api/realtime", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-client-id": getClientId()
+        },
+        body: JSON.stringify({
+          event,
+          payload,
+          clientId: getClientId()
+        })
+      })
+        .then(async (response) => (await response.json()) as Ack<Record<string, unknown> & { role?: "host" | "player"; room?: RoomView }>)
+        .then((response) => {
+          if (response.ok && response.room) {
+            onRoomUpdate(response.room, response.role);
+          }
+          ack?.(response);
+        })
+        .catch(() => {
+          onConnectionChange(false);
+          ack?.({ ok: false, error: "兼容连接失败，请刷新页面重试" });
+        });
+    },
+    disconnect() {
+      stopped = true;
+      if (pollTimer) {
+        window.clearTimeout(pollTimer);
+      }
+    }
+  };
 }
 
 function getClientId(): string {

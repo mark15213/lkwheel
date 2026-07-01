@@ -3,6 +3,7 @@ export default function handler(request: { url?: string }, response: { status: (
     ok: true,
     url: request.url,
     socketPath: "/api/socket-io",
+    fallbackPath: "/api/realtime",
     compatiblePaths: ["/api/socket-io", "/api/socket-io/socket.io", "/socket.io"]
   });
 }

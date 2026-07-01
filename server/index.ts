@@ -3,6 +3,7 @@ import { createServer as createHttpServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "socket.io";
+import { getHttpRealtimeHealth, getHttpRealtimeRoom, handleHttpRealtimeEvent, type RealtimeEvent } from "./httpRealtime";
 import { registerRealtimeHandlers } from "./realtime";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -15,8 +16,34 @@ const port = Number(process.env.PORT ?? 5173);
 
 registerRealtimeHandlers(io);
 
+app.use(express.json({ limit: "128kb" }));
+
 app.get("/api/health", (_request, response) => {
   response.json({ ok: true });
+});
+
+app.get("/api/realtime", (request, response) => {
+  const code = String(request.query.code ?? "");
+  if (!code) {
+    response.json(getHttpRealtimeHealth());
+    return;
+  }
+  response.json(getHttpRealtimeRoom(code, getClientIdFromRequest(request)));
+});
+
+app.post("/api/realtime", (request, response) => {
+  const body = (request.body ?? {}) as {
+    event?: string;
+    payload?: Record<string, unknown>;
+    clientId?: string;
+  };
+  response.json(
+    handleHttpRealtimeEvent(
+      String(body.event ?? "") as RealtimeEvent,
+      body.payload && typeof body.payload === "object" ? body.payload : {},
+      getClientIdFromRequest(request, body.clientId)
+    )
+  );
 });
 
 if (isProduction) {
@@ -37,3 +64,8 @@ if (isProduction) {
 httpServer.listen(port, () => {
   console.log(`Desk auction room listening on http://localhost:${port}`);
 });
+
+function getClientIdFromRequest(request: express.Request, fallback?: unknown): string {
+  const headerValue = request.header("x-client-id");
+  return headerValue?.trim() || String(fallback ?? "");
+}
