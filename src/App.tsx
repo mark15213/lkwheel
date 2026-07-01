@@ -98,9 +98,9 @@ export default function App() {
       }
     });
     client.on("disconnect", () => setConnected(false));
-    client.on("connect_error", () => {
+    client.on("connect_error", (error) => {
       setConnected(false);
-      setNotice("实时连接失败，请刷新页面或检查部署配置");
+      setNotice(`实时连接失败：${socketPath} (${error.message})`);
     });
     client.on("room:update", (nextRoom: RoomView) => setRoom(nextRoom));
 
