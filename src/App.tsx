@@ -412,6 +412,7 @@ function EntryPanel({
             加入游戏
           </button>
         </div>
+        <RulesPanel embedded />
       </div>
     </section>
   );
@@ -639,6 +640,7 @@ function HostPanel({
       )}
 
       <RevealPanel room={room} />
+      <RulesPanel compact />
 
       <section className="controlPanel">
         <div className="panelTitle">
@@ -720,6 +722,7 @@ function PlayerPanel({
       />
 
       <RevealPanel room={room} currentPlayerId={player.id} />
+      <RulesPanel compact />
 
       {room.phase === "complete" && (
         <section className="controlPanel">
@@ -727,6 +730,35 @@ function PlayerPanel({
         </section>
       )}
     </div>
+  );
+}
+
+function RulesPanel({ compact = false, embedded = false }: { compact?: boolean; embedded?: boolean }) {
+  const rules = [
+    "每人初始 100 工位币。",
+    "每轮选择一个未占工位，填写暗拍金额并锁定。",
+    "同一工位最高出价者中标，并支付全部出价。",
+    "未中标者扣出价 10% 参与费，最低扣 1 币。",
+    "最高价相同时，系统随机幸运胜出。",
+    "第 5 轮后仍未分配的人，按余额从高到低自动补位。"
+  ];
+  const visibleRules = compact ? rules.slice(0, 4) : rules;
+
+  return (
+    <section className={`${embedded ? "rulesPanel embeddedRules" : "controlPanel rulesPanel"} ${compact ? "compactRules" : ""}`}>
+      <div className="panelTitle">
+        <ClipboardList size={18} />
+        {compact ? "规则速览" : "游戏规则"}
+      </div>
+      <div className="ruleList">
+        {visibleRules.map((rule, index) => (
+          <div className="ruleItem" key={rule}>
+            <span className="ruleNumber">{index + 1}</span>
+            <p>{rule}</p>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

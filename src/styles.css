@@ -250,6 +250,12 @@ h2 {
   margin-top: 18px;
 }
 
+.embeddedRules {
+  margin-top: 20px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+
 label {
   display: grid;
   gap: 8px;
@@ -492,11 +498,55 @@ select:focus {
   min-height: 96px;
 }
 
+.rulesPanel.compactRules {
+  padding-bottom: 14px;
+}
+
 .panelTitle {
   gap: 8px;
   margin-bottom: 14px;
   color: var(--ink);
   font-weight: 950;
+}
+
+.ruleList {
+  display: grid;
+  gap: 10px;
+}
+
+.ruleItem {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.ruleNumber {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--surface);
+  background: var(--primary);
+  font-size: 12px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.ruleItem p {
+  color: var(--muted-strong);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.compactRules .ruleList {
+  gap: 8px;
+}
+
+.compactRules .ruleItem p {
+  font-size: 12px;
 }
 
 .metricRow {
