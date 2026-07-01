@@ -18,7 +18,7 @@ npm run dev
 1. 在 Vercel 导入仓库。
 2. Framework Preset 选择 `Vite`。
 3. 确认 Build Command 是 `npm run build`，Output Directory 是 `dist`。
-4. 确认项目开启 Fluid Compute。Vercel 在 2025-04-23 后创建的新项目默认开启。
+4. 项目配置已在 `vercel.json` 开启 `"fluid": true`，用于支持 WebSocket。
 5. 部署后打开 Vercel 域名。
 
 默认情况下，生产环境会自动连接 `/api/socket-io/socket.io`，不需要额外环境变量。
